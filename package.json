@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "fmt": "prettier --write package.json assets/frontend assets/static/js assets/static/css",
-    "build": "parcel build ./assets/frontend/main.js ./assets/frontend/styles.css --dist-dir assets/dist",
+    "build": "parcel build ./assets/frontend/main.js ./assets/frontend/styles.css --dist-dir assets/dist --no-source-maps",
     "dev": "parcel build ./assets/frontend/main.js ./assets/frontend/styles.css --dist-dir assets/dist --no-optimize",
     "wails:prepare": "make wails-prepare",
     "wails:dev": "make wails-dev",

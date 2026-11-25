@@ -97,6 +97,8 @@ const initClientID = `Client_${randomString}_${system}_${browser}`;
 Alpine.store('global', {
     nowPageNum: 1,
     allPageNum: 1,
+    drawerPinned: Alpine.$persist(false).as('global.drawerPinned'),
+    toolbarPinned: Alpine.$persist(false).as('global.toolbarPinned'),
     // 在线书籍模式：可访问后端，且不是本地 reader 或静态 HTML。
     onlineBook: onlineBook,
     // 本地便携模式：file:// 或 Android content:// 打开。
@@ -446,30 +448,21 @@ Alpine.store('global', {
         }
         return responseBody;
     },
-    // 检测并设置视口方向
+    // 按正文可用空间判断横竖屏，固定抽屉占用的右栏不参与计算。
     checkOrientation() {
-        const isPortrait = window.innerHeight > window.innerWidth;
+        const isPortrait = Math.min(window.innerHeight, document.body.clientHeight) > document.body.clientWidth;
         this.isPortrait = isPortrait;
         this.isLandscape = !isPortrait;
     },
-    // 初始化方法
+    // Alpine 自动调用 init，方向监听只注册一次。
     init() {
-        // 设置初始方向
         this.checkOrientation();
-        // 添加视口变化监听
-        window.addEventListener('resize', () => {
-            this.checkOrientation();
-        });
+        window.addEventListener('resize', () => this.checkOrientation());
     }
 })
 
 // 旧版本可能留下非 scroll/flip 的 global.readMode，统一回落到卷轴阅读。
 if (!['scroll', 'flip'].includes(Alpine.store('global').readMode)) Alpine.store('global').readMode = 'scroll';
-
-// 初始化全局存储
-document.addEventListener('alpine:initialized', () => {
-    Alpine.store('global').init();
-});
 
 if (currentRelativePath.includes('/flip/')) {
     Alpine.store('global').readMode = 'flip';

@@ -1,0 +1,20 @@
+Comigo 修改版源码
+
+包含本次全部修改、生成的 Go 模板、前端资源及 archive.wasm。
+Go 版本以 go.mod 为准。使用 Go 直接编译 Windows 64 位 EXE：
+
+在源码根目录打开 PowerShell，执行：
+$env:CGO_ENABLED="0"
+$env:GOOS="windows"
+$env:GOARCH="amd64"
+go build -trimpath -ldflags="-s -w -H=windowsgui" -o comigo.exe ./cmd/comigo
+
+修改模板或前端后，用 Bun 和 Go 同步生成文件：
+bun install
+go tool templ generate
+bun run build
+
+需要重建本地压缩包读取模块时：
+bun run build:wasm
+
+其他使用及构建说明见项目原有 README 和 AGENTS.md。

@@ -58,7 +58,7 @@ templ ReadingHistoryWithLimit(limit int) {
 		<div
 			x-show="!collapsed"
 			x-transition
-			class="panel-surface mt-0 p-1 space-y-2 overflow-y-auto rounded border-t-2 border-2 border-gray-500 dark:border-gray-200"
+			class="panel-surface mt-0 p-1 space-y-2 scroll-hidden rounded border-t-2 border-2 border-gray-500 dark:border-gray-200"
 		>
 			<!-- 加载中 -->
 			<div x-show="loading" class="text-center text-gray-500 py-4">

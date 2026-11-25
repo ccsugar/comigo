@@ -67,19 +67,19 @@ function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max)
 }
 
-// 获取文档可滚动的最大 scrollTop 值
+// 获取条漫滚动区的最大 scrollTop 值
 function getMaxScrollTop() {
-    return Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
+    return Math.max(0, document.body.scrollHeight - document.body.clientHeight)
 }
 
 // 判断文档是否已滚动到顶部（含容差）
 function isDocumentAtTop() {
-    return window.scrollY <= SCROLL_DOCUMENT_EDGE_TOLERANCE_PX
+    return document.body.scrollTop <= SCROLL_DOCUMENT_EDGE_TOLERANCE_PX
 }
 
 // 判断文档是否已滚动到底部（含容差）
 function isDocumentAtBottom() {
-    return getMaxScrollTop() - window.scrollY <= SCROLL_DOCUMENT_EDGE_TOLERANCE_PX
+    return getMaxScrollTop() - document.body.scrollTop <= SCROLL_DOCUMENT_EDGE_TOLERANCE_PX
 }
 
 // 根据目标图片和阅读百分比计算 scrollTop；边缘标志优先直接返回顶/底
@@ -92,9 +92,9 @@ function getTargetScrollTopForImage(image, percent, edgeFlags = {}) {
     }
 
     const rect = image.getBoundingClientRect()
-    const absoluteTop = window.scrollY + rect.top
+    const absoluteTop = document.body.scrollTop + rect.top - document.body.getBoundingClientRect().top
     return clamp(
-        absoluteTop + rect.height * clamp(percent, 0, 1) - window.innerHeight / 2,
+        absoluteTop + rect.height * clamp(percent, 0, 1) - document.body.clientHeight / 2,
         0,
         getMaxScrollTop(),
     )
@@ -169,7 +169,7 @@ function animateRemoteScrollTo(targetTop, triggerSource) {
         const dt = Math.max(1, timestamp - scrollSyncState.remoteScrollAnimationLastFrameTime)
         scrollSyncState.remoteScrollAnimationLastFrameTime = timestamp
 
-        const currentTop = window.scrollY
+        const currentTop = document.body.scrollTop
         const targetTopNow = clamp(
             scrollSyncState.remoteScrollAnimationTargetTop,
             0,
@@ -182,7 +182,7 @@ function animateRemoteScrollTo(targetTop, triggerSource) {
         // 边缘目标（顶部/底部）：不等 idle，距离足够小就直接吸附
         const isEdgeTarget = targetTopNow === 0 || targetTopNow >= getMaxScrollTop()
         if (isEdgeTarget && distance <= SCROLL_REMOTE_EDGE_SNAP_PX) {
-            window.scrollTo({
+            document.body.scrollTo({
                 top: targetTopNow,
                 behavior: 'auto',
             })
@@ -193,7 +193,7 @@ function animateRemoteScrollTo(targetTop, triggerSource) {
         }
 
         if (distance <= SCROLL_REMOTE_FOLLOW_SNAP_PX && idleForMs >= SCROLL_REMOTE_FOLLOW_IDLE_MS) {
-            window.scrollTo({
+            document.body.scrollTo({
                 top: targetTopNow,
                 behavior: 'auto',
             })
@@ -210,7 +210,7 @@ function animateRemoteScrollTo(targetTop, triggerSource) {
         const followAlpha = 1 - Math.exp(-dt / Math.max(1, timeConstant))
         const nextTop = currentTop + delta * followAlpha
 
-        window.scrollTo({
+        document.body.scrollTo({
             top: nextTop,
             behavior: 'auto',
         })
@@ -417,7 +417,7 @@ function initScrollLazyLoading() {
             scrollLazyObserver.unobserve(image)
         }
     }, {
-        root: null,
+        root: document.body,
         rootMargin: '1200px 0px',
         threshold: 0.01,
     })
@@ -451,7 +451,8 @@ function getTrackedPercent(image) {
     if (rect.height <= 0) {
         return 0
     }
-    return clamp((window.innerHeight / 2 - rect.top) / rect.height, 0, 1)
+    const centerY = document.body.getBoundingClientRect().top + document.body.clientHeight / 2
+    return clamp((centerY - rect.top) / rect.height, 0, 1)
 }
 
 // isScrollSyncDebug 使用服务端 Debug 开关，避免本地持久化状态绕过设置页。
@@ -461,7 +462,7 @@ function isScrollSyncDebug() {
 
 // 解析当前屏幕中线所在的图片及其阅读百分比
 function resolveCenterTrackedPage() {
-    const centerY = window.innerHeight / 2
+    const centerY = document.body.getBoundingClientRect().top + document.body.clientHeight / 2
     const pageImages = getScrollPageImages()
     if (pageImages.length === 0) {
         if (isScrollSyncDebug()) {
@@ -787,10 +788,10 @@ function initScrollModeSync() {
 
 //滚动到顶部
 function scrollToTop(scrollDuration) {
-    let scrollStep = -window.scrollY / (scrollDuration / 15),
+    let scrollStep = -document.body.scrollTop / (scrollDuration / 15),
         scrollInterval = setInterval(function () {
-            if (window.scrollY !== 0) {
-                window.scrollBy(0, scrollStep)
+            if (document.body.scrollTop !== 0) {
+                document.body.scrollBy(0, scrollStep)
             } else clearInterval(scrollInterval)
         }, 15)
 }
@@ -818,7 +819,7 @@ let scrollDownFlag = false
 let showBackTopFlag = false
 let step = 0
 function onScroll() {
-    let scrollTop = document.documentElement.scrollTop || document.body.scrollTop
+    let scrollTop = document.body.scrollTop
     scrollDownFlag = scrollTop > scrollTopSave
     //防手抖,小于一定数值状态就不变 Math.abs()会导致报错
     step = scrollTopSave - scrollTop
@@ -832,69 +833,11 @@ function onScroll() {
     }
     scheduleCenterPageUpdate()
 }
-window.addEventListener('scroll', onScroll, { passive: true })
+document.body.addEventListener('scroll', onScroll, { passive: true })
 
-let isLandscapeMode = true
-let isPortraitMode = false
-//可见区域变化的时候改变页面状态
-function onResize() {
-    Alpine.store('scroll').imageMaxWidth = window.innerWidth
-    let clientWidth = document.documentElement.clientWidth
-    let clientHeight = document.documentElement.clientHeight
-    let aspectRatio = clientWidth / clientHeight
-    // 为了调试的时候方便,阈值是正方形
-    if (aspectRatio > 19 / 19) {
-        isLandscapeMode = true
-        isPortraitMode = false
-    } else {
-        isLandscapeMode = false
-        isPortraitMode = true
-    }
-    scheduleCenterPageUpdate()
-}
-//初始化时,执行一次onResize()
-onResize()
-//文档视图调整大小时触发 resize 事件。 https://developer.mozilla.org/zh-CN/docs/Web/API/Window/resize_event
-window.addEventListener('resize', onResize)
-
-function getScrollInteractionUtils() {
-    return window.ComiGoInteraction || window.ComiGoFlip?.interaction
-}
-
-//鼠标是否在设置区域
-function getInSetArea(e) {
-    const interactionUtils = getScrollInteractionUtils()
-    // 保持 scroll 旧行为：继续使用 MouseEvent.x/y，触摸事件不额外转成 touches 坐标。
-    return Boolean(interactionUtils?.isInSetArea?.(e.x, e.y, window.innerWidth, window.innerHeight, 0.15))
-}
-
-//获取鼠标位置,决定是否打开设置面板
-function onMouseClick(e) {
-    if (getInSetArea(e)) {
-        //获取ID为 OpenSettingButton的元素，然后模拟点击
-        document.getElementById('OpenSettingButton').click()
-    }
-}
-
-// base64 -i SettingsOutline.svg ，然后// 把下面这行换成输出的Base64编码
-const SettingsOutlineBase64 = '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'
-
-//获取鼠标位置,决定是否打开设置面板
-function onMouseMove(e) {
-    if (getInSetArea(e)) {
-        e.currentTarget.style.cursor = `url("data:image/png;base64,${SettingsOutlineBase64}") 12 12, pointer`
-    } else {
-        e.currentTarget.style.cursor = ''
-    }
-}
-//获取ID为 ScrollMainArea 的元素
-let ScrollMainArea = document.getElementById('ScrollMainArea')
-if (ScrollMainArea) {
-    // 鼠标移动的时候触发移动事件
-    ScrollMainArea.addEventListener('mousemove', onMouseMove)
-    // 点击和轻触统一由 click 处理，touchstart 没有鼠标坐标。
-    ScrollMainArea.addEventListener('click', onMouseClick)
-}
+// 初始化或阅读区尺寸变化时更新当前页码。
+scheduleCenterPageUpdate()
+window.addEventListener('resize', scheduleCenterPageUpdate)
 
 // 键盘快捷键
 /* 记录方向键当前的按压状态 */

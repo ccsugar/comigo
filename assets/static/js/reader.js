@@ -496,7 +496,6 @@ function renderReaderScrollBook(book) {
     Alpine.initTree(mainArea)
     // 卷轴阅读先生成空 img，再由 IntersectionObserver 近屏加载图片，减少大压缩包首屏等待。
     initReaderLazyLoading()
-    initReaderGestures()
     restoreReaderProgress(book)
     scheduleReaderCenterUpdate()
 }
@@ -539,7 +538,7 @@ function initReaderLazyLoading() {
             readerState.observer.unobserve(img)
         }
     }, {
-        root: null,
+        root: document.body,
         rootMargin: '1200px 0px',
         threshold: 0.01,
     })
@@ -597,7 +596,7 @@ function getReaderPageImages() {
 }
 
 function resolveReaderCenterPage() {
-    const centerY = window.innerHeight / 2
+    const centerY = document.body.getBoundingClientRect().top + document.body.clientHeight / 2
     let active = null
     let closestDistance = Infinity
     for (const image of getReaderPageImages()) {
@@ -961,7 +960,7 @@ function setReaderFlipTranslate(value) {
 
 // 边界拖动使用阻尼，既给出反馈，也避免第一页/末页被硬推到空白区域。
 function getReaderRubberBandTranslate(diffX) {
-    const limit = Math.min(window.innerWidth * 0.18, 72)
+    const limit = Math.min(document.body.clientWidth * 0.18, 72)
     const distance = Math.abs(diffX)
     const eased = limit * (1 - Math.exp(-distance / limit))
     return Math.sign(diffX) * eased
@@ -1007,7 +1006,7 @@ function animateReaderFlipReset() {
 
 function animateReaderFlipSlide(direction) {
     // 松手后先把当前 slider 补完到整屏宽度，再提交页码切换。
-    const width = getReaderFlipElements().sliderContainer?.clientWidth || window.innerWidth
+    const width = getReaderFlipElements().sliderContainer?.clientWidth || document.body.clientWidth
     const targetPosition = direction === 'left' ? -width : width
     const duration = Alpine.store('flip').swipeAnimationDuration || 260
     animateReaderFlipTo(targetPosition, duration, () => {
@@ -1103,15 +1102,7 @@ function readerFlipTouchEnd(event) {
 
 function onReaderFlipClick(event) {
     if (Date.now() < readerState.flip.suppressClickUntil || readerState.flip.isSwiping || readerState.flip.isAnimating || Math.abs(readerState.flip.currentTranslate) > 10) return
-    if (getInReaderSettingArea(event)) {
-        if (Alpine.store('flip').autoAlign) {
-            document.getElementById('reader-flip-slider-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }
-        showReaderFlipToolbar()
-        openReaderSettings()
-        return
-    }
-    const leftSide = event.clientX < window.innerWidth * 0.5
+    const leftSide = event.clientX < document.body.clientWidth * 0.5
     if ((leftSide && !Alpine.store('flip').mangaMode) || (!leftSide && Alpine.store('flip').mangaMode)) {
         toPreviousReaderFlipPage()
     } else {
@@ -1138,36 +1129,18 @@ function onReaderFlipMouseMove(event) {
     const elements = getReaderFlipElements()
     const x = event.clientX
     const y = event.clientY
-    const inSetArea = getInReaderSettingArea(event)
-    if (inSetArea) {
-        event.currentTarget.style.cursor = getReaderCursorStyle('settings')
-        showReaderFlipToolbar()
-        return
-    }
-
     const stepsRect = elements.steps?.getBoundingClientRect()
     if (readerFlipPointInRect(stepsRect, x, y)) {
         event.currentTarget.style.cursor = 'default'
         return
     }
 
-    const leftSide = x < window.innerWidth * 0.5
+    const leftSide = x < document.body.clientWidth * 0.5
     const mangaMode = Alpine.store('flip').mangaMode
-    const nowPageNum = Alpine.store('global').nowPageNum
-    const allPageNum = Alpine.store('global').allPageNum
-    if (leftSide) {
-        if ((!mangaMode && nowPageNum === 1) || (mangaMode && nowPageNum === allPageNum)) {
-            event.currentTarget.style.cursor = getReaderCursorStyle('prohibited')
-            return
-        }
-        event.currentTarget.style.cursor = getReaderCursorStyle('left')
-        return
-    }
-    if ((!mangaMode && nowPageNum === allPageNum) || (mangaMode && nowPageNum === 1)) {
-        event.currentTarget.style.cursor = getReaderCursorStyle('prohibited')
-        return
-    }
-    event.currentTarget.style.cursor = getReaderCursorStyle('right')
+    const { nowPageNum, allPageNum } = Alpine.store('global')
+    const previous = leftSide ? !mangaMode : mangaMode
+    const blocked = nowPageNum === (previous ? 1 : allPageNum)
+    event.currentTarget.style.cursor = getReaderCursorStyle(blocked ? 'prohibited' : leftSide ? 'left' : 'right')
 }
 
 function onReaderFlipMouseLeave(event) {
@@ -1226,8 +1199,8 @@ function restoreReaderHeaderToolbar() {
     clearReaderFlipToolbarTimer()
     const { header, steps } = getReaderFlipToolbarElements()
     if (header) {
-        header.style.opacity = '1'
-        header.style.transform = 'translateY(0)'
+        header.style.opacity = ''
+        header.style.transform = ''
     }
     if (steps) {
         steps.style.opacity = '1'
@@ -1257,7 +1230,7 @@ function applyReaderFlipLayout() {
         header.style.top = '0'
         header.style.left = '0'
         header.style.right = '0'
-        header.style.width = '100%'
+        header.style.width = 'calc(100% - var(--drawer-offset))'
         header.style.zIndex = '30'
         header.style.backdropFilter = 'blur(16px)'
         return
@@ -1348,56 +1321,19 @@ function onReaderFlipDocumentMouseMove(event) {
     const y = event.clientY
     const nearHeader = Alpine.store('flip').autoHideToolbar ? y <= 80 : readerFlipPointInRect(header?.getBoundingClientRect(), x, y)
     const nearSteps = Alpine.store('flip').autoHideToolbar ? y >= window.innerHeight - 80 : readerFlipPointInRect(steps?.getBoundingClientRect(), x, y)
-    if (getInReaderSettingArea(event) || nearHeader || nearSteps) {
+    if (nearHeader || nearSteps) {
         showReaderFlipToolbar()
     } else {
         hideReaderFlipToolbar()
     }
 }
 
-// 判断点击位置是否位于屏幕中央设置区域；只复用公共几何判断，保留 reader 自己的响应行为。
-function getInReaderSettingArea(event) {
-    const pointer = event.touches ? event.touches[0] : event
-    if (!pointer) return false
-
-    const util = getReaderFlipInteractionUtils()
-    return Boolean(util?.isInSetArea?.(pointer.clientX, pointer.clientY, window.innerWidth, window.innerHeight, 0.15))
-}
-
-function openReaderSettings() {
-    const button = document.getElementById('OpenSettingButton')
-    if (button) {
-        button.click()
-    }
-}
-
-function onReaderClick(event) {
-    if (getInReaderSettingArea(event)) {
-        openReaderSettings()
-    }
-}
-
-function onReaderMouseMove(event) {
-    event.currentTarget.style.cursor = getInReaderSettingArea(event) ? getReaderCursorStyle('settings') : ''
-}
-
-function initReaderGestures() {
-    const mainArea = document.getElementById('ScrollMainArea')
-    if (!mainArea || mainArea.dataset.readerGesturesReady === 'true') return
-
-    mainArea.dataset.readerGesturesReady = 'true'
-    // 卷轴阅读保留中间区域打开设置的交互，和在线 scroll 阅读页保持一致。
-    mainArea.addEventListener('mousemove', onReaderMouseMove)
-    mainArea.addEventListener('click', onReaderClick)
-    mainArea.addEventListener('touchstart', onReaderClick, { passive: true })
-}
-
 // 平滑滚动到页面顶部，移植自 scroll.js 的返回顶部行为。
 function scrollReaderToTop(scrollDuration) {
-    const scrollStep = -window.scrollY / (scrollDuration / 15)
+    const scrollStep = -document.body.scrollTop / (scrollDuration / 15)
     const scrollInterval = setInterval(() => {
-        if (window.scrollY !== 0) {
-            window.scrollBy(0, scrollStep)
+        if (document.body.scrollTop !== 0) {
+            document.body.scrollBy(0, scrollStep)
         } else {
             clearInterval(scrollInterval)
         }
@@ -1446,8 +1382,8 @@ function initReaderBackTop() {
     const btn = getReaderBackTopButton()
     if (!btn) return
     btn.addEventListener('click', () => scrollReaderToTop(500))
-    window.addEventListener('scroll', () => {
-        const scrollTop = document.documentElement.scrollTop || document.body.scrollTop
+    document.body.addEventListener('scroll', () => {
+        const scrollTop = document.body.scrollTop
         readerState.scrollDownFlag = scrollTop > readerState.scrollTopSave
         const step = readerState.scrollTopSave - scrollTop
         readerState.scrollTopSave = scrollTop
@@ -1461,8 +1397,6 @@ function initReaderBackTop() {
 
 function initReaderResize() {
     const onResize = () => {
-        Alpine.store('scroll').imageMaxWidth = window.innerWidth
-        Alpine.store('global').checkOrientation()
         scheduleReaderCenterUpdate()
         // 横竖屏或窗口变化会影响单双页尺寸，需要重建翻页相邻页。
         updateReaderFlipImages()
@@ -1482,7 +1416,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initReaderInput()
     initReaderBackTop()
     initReaderResize()
-    initReaderGestures()
 })
 
 window.addEventListener('keydown', (event) => {

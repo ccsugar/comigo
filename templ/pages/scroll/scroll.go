@@ -84,7 +84,6 @@ func ScrollModeHandler(c echo.Context) error {
 		scrollPage, // define body content
 		[]string{
 			"static/js/ws_sync.js",
-			"static/js/flip_modules/interaction_utils.js",
 			"static/js/scroll.js",
 		},
 	)

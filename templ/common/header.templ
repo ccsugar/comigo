@@ -33,11 +33,35 @@ templ Header(left templ.Component, center templ.Component, right templ.Component
 	</header>
 }
 
-// HeaderDefaultRight 是原 Header 右侧默认工具区：二维码、在线全屏、阅读器设置。
+// HeaderDefaultRight 提供二维码、全屏和固定上栏按钮，并保留独立齿轮的位置。
 templ HeaderDefaultRight() {
 	@QRCodeButton()
 	@FullScreenOnlineButton()
-	@SettingDrawerButton()
+	@PinButton("header", "toolbarPinned", "reader_toolbar")
+	<div class="w-12 h-10 shrink-0">
+		@SettingDrawerButton()
+	</div>
+}
+
+// 上栏和设置抽屉共用图钉的外观、选中态和提示文字。
+templ PinButton(target string, setting string, label string) {
+	{{ pinned := "$store.global." + setting }}
+	{{ title := fmt.Sprintf("i18next.t(%s ? '%s_unpin' : '%s_pin')", pinned, label, label) }}
+	<button
+		type="button"
+		data-pin={ target }
+		aria-controls={ target }
+		:aria-pressed={ pinned }
+		:aria-label={ title }
+		:title={ title }
+		:class={ pinned + " ? 'bg-primary text-[color:var(--primary-content)]' : 'hover:bg-[var(--base-200)]'" }
+		class="inline-flex w-8 h-8 shrink-0 items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
+	>
+		<svg class="w-5 h-5 transition-transform" :class={ pinned + " ? '' : '-rotate-45'" } viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+			<path d="M16 9V4l1-1H7l1 1v5l-3 3v2h14v-2l-3-3Z"></path>
+			<path d="M12 14v7"></path>
+		</svg>
+	</button>
 }
 
 // HeaderBackLeft 是常见左侧区域：返回按钮 + 离线全屏。
@@ -63,7 +87,7 @@ templ HeaderSettingsLeft(returnUrl string) {
 
 //  返回箭头,点击返回上一页
 templ ReturnButton(returnUrl string) {
-	<a x-cloak x-show="!$store.global.localBook" href={ templ.SafeURL(config.PrefixPath(returnUrl)) }>
+	<a class="header-return" x-cloak x-show="!$store.global.localBook" href={ templ.SafeURL(config.PrefixPath(returnUrl)) }>
 		<div class="flex justify-center items-center w-10 h-10 mx-1 my-0 rounded hover:ring">
 			@svg.Return()
 		</div>
@@ -136,10 +160,9 @@ templ FullScreenOnlineButton() {
 	</div>
 }
 
-// 阅读器设定,点击屏幕中央也可以打开  可自定义方向 -->
-// data-drawer-body-scrolling="true" 允许打开抽屉时继续滚动底层页面，避免背景布局抖动。
+// 阅读设置通过独立齿轮按钮打开。
 templ SettingDrawerButton() {
-	<div class="flex justify-center items-center w-10 h-10 mx-1 my-0 rounded hover:ring" id="OpenSettingButton" data-drawer-target="drawer-right" data-drawer-show="drawer-right" aria-controls="drawer-right" data-drawer-placement="right" data-drawer-body-scrolling="true">
+	<div class="flex justify-center items-center w-10 h-10 mx-1 my-0 rounded hover:ring" id="OpenSettingButton" data-drawer-show="drawer-right" aria-controls="drawer-right">
 		@svg.Setting()
 	</div>
 }

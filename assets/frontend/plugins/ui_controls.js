@@ -1,177 +1,88 @@
-// 此文件只实现模板实际使用的 drawer、modal 和 dropdown 数据属性交互。
+// 此文件实现顶部栏及模板使用的 drawer、modal 和 dropdown 交互。
 // 调用点集中在 templ/common/header.templ、drawer.templ 与 qrcode.templ。
-const backdropClassNames = ['bg-dark-backdrop/70', 'fixed', 'inset-0']
 
-// data-* 布尔属性只接受字符串 true；未配置时沿用调用方给出的默认值。
-function getBoolAttr(element, name, defaultValue) {
-    const value = element.getAttribute(name)
-    if (value === null) return defaultValue
-    return value === 'true'
+// 固定状态改变后统一通知阅读器重排。
+function setPinnedLayout(name, pinned) {
+    if (document.body.classList.contains(name) === pinned) return
+    document.body.classList.toggle(name, pinned)
+    window.dispatchEvent(new Event('resize'))
 }
 
-// 将抽屉方向转换为固定边和显隐位移类，和模板初始的 translate-x-full 配合。
-function getPlacementClasses(placement) {
-    switch (placement) {
-        case 'right':
-            return {
-                active: ['transform-none'],
-                inactive: ['translate-x-full'],
-                base: ['right-0', 'top-0'],
-            }
-        case 'top':
-            return {
-                active: ['transform-none'],
-                inactive: ['-translate-y-full'],
-                base: ['top-0', 'left-0', 'right-0'],
-            }
-        case 'bottom':
-            return {
-                active: ['transform-none'],
-                inactive: ['translate-y-full'],
-                base: ['bottom-0', 'left-0', 'right-0'],
-            }
-        case 'left':
-        default:
-            return {
-                active: ['transform-none'],
-                inactive: ['-translate-x-full'],
-                base: ['left-0', 'top-0'],
-            }
-    }
-}
-
-function addClasses(element, classes) {
-    element.classList.add(...classes)
-}
-
-function removeClasses(element, classes) {
-    element.classList.remove(...classes)
-}
-
-// 控制单个抽屉的位移、遮罩、页面滚动和无障碍属性。
-function createDrawerController(drawer, options) {
+// 页面共用一个右侧设置抽屉；固定时占据独立右栏，正文仍可滚动。
+function initDrawer() {
+    const drawer = document.getElementById('drawer-right')
+    if (!drawer) return
+    const settings = Alpine.store('global')
     let visible = false
-    const placementClasses = getPlacementClasses(options.placement)
+    const backdrop = document.createElement('div')
+    backdrop.setAttribute('drawer-backdrop', '')
+    backdrop.addEventListener('click', () => setVisible(false))
 
-    addClasses(drawer, placementClasses.base)
-    drawer.classList.add('transition-transform')
-    drawer.setAttribute('aria-hidden', 'true')
-
-    function removeBackdrop() {
-        document.querySelector('[drawer-backdrop]')?.remove()
-    }
-
-    function createBackdrop() {
-        if (!options.backdrop || visible) return
-        const backdrop = document.createElement('div')
-        backdrop.setAttribute('drawer-backdrop', '')
-        addClasses(backdrop, [...backdropClassNames, 'z-30'])
-        backdrop.addEventListener('click', hide)
-        document.body.append(backdrop)
-    }
-
-    // 打开/关闭抽屉时只切换既有 class 与 aria 属性，避免影响抽屉内部 Alpine 状态。
-    function show() {
-        removeClasses(drawer, placementClasses.inactive)
-        addClasses(drawer, placementClasses.active)
-        drawer.setAttribute('aria-modal', 'true')
-        drawer.setAttribute('role', 'dialog')
-        drawer.removeAttribute('aria-hidden')
-        if (!options.bodyScrolling) {
-            document.body.classList.add('overflow-hidden')
-        }
-        createBackdrop()
-        visible = true
-        // 通知依赖可见状态的内容；二维码据此按需检查 URL，不监听每次翻页。
-        drawer.dispatchEvent(
-            new CustomEvent('comigo-drawer-shown', { bubbles: true }),
-        )
-    }
-
-    function hide() {
-        removeClasses(drawer, placementClasses.active)
-        addClasses(drawer, placementClasses.inactive)
-        drawer.setAttribute('aria-hidden', 'true')
-        drawer.removeAttribute('aria-modal')
-        drawer.removeAttribute('role')
-        if (!options.bodyScrolling) {
-            document.body.classList.remove('overflow-hidden')
-        }
-        if (options.backdrop) {
-            removeBackdrop()
-        }
-        visible = false
-    }
-
-    function toggle() {
-        if (visible) {
-            hide()
+    // 显隐和固定共用一次更新，仅在左右栏宽度改变时通知阅读器。
+    function update() {
+        const modal = visible && !settings.drawerPinned
+        drawer.classList.toggle('translate-x-full', !visible)
+        drawer.setAttribute('aria-hidden', String(!visible))
+        drawer.setAttribute('aria-modal', String(modal))
+        if (modal) {
+            document.body.append(backdrop)
         } else {
-            show()
+            backdrop.remove()
+        }
+        setPinnedLayout('drawer-pinned', visible && settings.drawerPinned)
+    }
+
+    function setVisible(open) {
+        visible = open
+        update()
+        // 二维码只在打开抽屉时按需刷新。
+        if (open) {
+            drawer.dispatchEvent(new CustomEvent('comigo-drawer-shown', { bubbles: true }))
         }
     }
 
-    return {
-        hide,
-        show,
-        toggle,
-        isVisible: () => visible,
-    }
+    document.querySelector('[data-drawer-show]').addEventListener('click', () => setVisible(true))
+    drawer.querySelector('[data-drawer-hide]').addEventListener('click', () => setVisible(false))
+    drawer.querySelector('[data-pin]').addEventListener('click', () => {
+        settings.drawerPinned = !settings.drawerPinned
+        visible = settings.drawerPinned
+        update()
+    })
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && visible && !settings.drawerPinned) setVisible(false)
+    })
+    if (settings.drawerPinned) setVisible(true)
 }
 
-// 先由 data-drawer-target 建立控制器，再为 show/toggle/hide 触发器绑定点击行为。
-function initDrawers() {
-    const drawers = new Map()
-
-    document.querySelectorAll('[data-drawer-target]').forEach((trigger) => {
-        const drawerId = trigger.getAttribute('data-drawer-target')
-        const drawer = document.getElementById(drawerId)
-        if (!drawer || drawers.has(drawerId)) return
-
-        drawers.set(
-            drawerId,
-            createDrawerController(drawer, {
-                backdrop: getBoolAttr(trigger, 'data-drawer-backdrop', true),
-                bodyScrolling: getBoolAttr(
-                    trigger,
-                    'data-drawer-body-scrolling',
-                    false,
-                ),
-                placement:
-                    trigger.getAttribute('data-drawer-placement') || 'left',
-            }),
-        )
+// 条漫上栏悬浮呼出，固定时让出一行；齿轮独立于上栏显隐。
+function initReaderToolbar() {
+    if (!document.getElementById('ScrollMainArea')) return
+    const body = document.body
+    const header = document.getElementById('header')
+    const settings = Alpine.store('global')
+    body.append(document.getElementById('OpenSettingButton'))
+    header.querySelector('[data-pin]').addEventListener('click', () => {
+        settings.toolbarPinned = !settings.toolbarPinned
     })
 
-    document.querySelectorAll('[data-drawer-show]').forEach((trigger) => {
-        trigger.addEventListener('click', () => {
-            drawers.get(trigger.getAttribute('data-drawer-show'))?.show()
-        })
+    Alpine.effect(() => {
+        const enabled = settings.readMode === 'scroll'
+        body.classList.toggle('scroll-toolbar', enabled)
+        setPinnedLayout('toolbar-pinned', enabled && settings.toolbarPinned)
     })
+    new ResizeObserver(() => {
+        document.documentElement.style.setProperty('--reader-scrollbar-width', `${body.offsetWidth - body.clientWidth}px`)
+    }).observe(body)
 
-    document.querySelectorAll('[data-drawer-toggle]').forEach((trigger) => {
-        trigger.addEventListener('click', () => {
-            drawers.get(trigger.getAttribute('data-drawer-toggle'))?.toggle()
-        })
-    })
+    function reveal(event) {
+        if (settings.readMode !== 'scroll') return
+        const height = body.classList.contains('toolbar-shown') ? header.offsetHeight : 12
+        body.classList.toggle('toolbar-shown', header.contains(event.target) ||
+            (event.clientX < body.clientWidth && event.clientY <= height))
+    }
 
-    document
-        .querySelectorAll('[data-drawer-hide], [data-drawer-dismiss]')
-        .forEach((trigger) => {
-            trigger.addEventListener('click', () => {
-                const drawerId =
-                    trigger.getAttribute('data-drawer-hide') ||
-                    trigger.getAttribute('data-drawer-dismiss')
-                drawers.get(drawerId)?.hide()
-            })
-        })
-
-    document.addEventListener('keydown', (event) => {
-        if (event.key !== 'Escape') return
-        drawers.forEach((drawer) => {
-            if (drawer.isVisible()) drawer.hide()
-        })
-    })
+    document.addEventListener('pointermove', reveal)
+    document.addEventListener('pointerdown', reveal)
 }
 
 // modal 本身是 flex 容器，placement 决定内容在视口中的对齐位置。
@@ -204,7 +115,7 @@ function createModalController(modal, options) {
     let visible = false
     let backdrop = null
 
-    addClasses(modal, getModalPlacementClasses(options.placement))
+    modal.classList.add(...getModalPlacementClasses(options.placement))
 
     function removeBackdrop() {
         backdrop?.remove()
@@ -214,7 +125,7 @@ function createModalController(modal, options) {
     function createBackdrop() {
         if (backdrop) return
         backdrop = document.createElement('div')
-        addClasses(backdrop, [...backdropClassNames, 'z-40'])
+        backdrop.className = 'bg-dark-backdrop/70 fixed inset-0 z-40'
         document.body.append(backdrop)
     }
 
@@ -323,21 +234,20 @@ function initModals() {
 
 // 当前排序菜单固定显示在触发器下方并水平居中，同时限制在视口宽度内。
 function positionDropdown(trigger, menu, offsetDistance) {
-    const triggerRect = trigger.getBoundingClientRect()
-    const menuRect = menu.getBoundingClientRect()
-    const viewportWidth =
-        window.innerWidth || document.documentElement.clientWidth || 0
-    const scrollX = window.scrollX || window.pageXOffset || 0
-    const scrollY = window.scrollY || window.pageYOffset || 0
-    const centeredLeft =
-        triggerRect.left + scrollX + triggerRect.width / 2 - menuRect.width / 2
-    const maxLeft = Math.max(0, viewportWidth - menuRect.width)
-    const left = Math.max(0, Math.min(centeredLeft, maxLeft))
-    const top = triggerRect.bottom + scrollY + offsetDistance
-
     menu.style.position = 'absolute'
     menu.style.inset = '0px auto auto 0px'
     menu.style.margin = '0px'
+    const triggerRect = trigger.getBoundingClientRect()
+    const menuRect = menu.getBoundingClientRect()
+    const parent = menu.offsetParent
+    const parentRect = parent.getBoundingClientRect()
+    const viewportWidth = document.body.clientWidth
+    const centeredLeft =
+        triggerRect.left + triggerRect.width / 2 - menuRect.width / 2
+    const maxLeft = Math.max(0, viewportWidth - menuRect.width)
+    const left = Math.max(0, Math.min(centeredLeft, maxLeft)) - parentRect.left + parent.scrollLeft
+    const top = triggerRect.bottom - parentRect.top + parent.scrollTop + offsetDistance
+
     menu.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`
     menu.setAttribute('data-popper-placement', 'bottom')
 }
@@ -430,9 +340,10 @@ function initDropdowns() {
     })
 }
 
-// 主入口只初始化当前模板真实使用的三类控件。
+// 主入口只初始化当前模板实际使用的控件。
 export function initComigoUIControls() {
-    initDrawers()
+    initDrawer()
+    initReaderToolbar()
     initModals()
     initDropdowns()
 }

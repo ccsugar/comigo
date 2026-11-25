@@ -31,6 +31,9 @@
   --grid-pattern-color: rgb(203 213 225);
   --grid-mosaic-color: #8d8b8b;
   --button-hover-filter: brightness(0.92);
+  --drawer-width: 16rem;
+  --drawer-offset: 0rem;
+  --toolbar-offset: 0rem;
 }
 
 /* 亮色主题按钮 hover 时稍微变暗，暗色主题则稍微变亮，以提供视觉反馈。 */
@@ -44,50 +47,126 @@ body {
   place-items: center;
 }
 
-/*隐藏滚动条但保持可滚动功能。不同浏览器的实现方式略有差异，需要结合使用几种属性才能尽可能兼容主流浏览器。*/
-/* 1. 针对 WebKit 内核（Chrome、Safari、Opera 等） */
-body::-webkit-scrollbar {
+/* 设置栏和非条漫页面隐藏滚动条，保留滚动操作。 */
+body,
+.scroll-hidden {
+  overflow: auto;
+}
+
+body:not(:has(#ScrollMainArea)),
+.scroll-hidden {
+  scrollbar-width: none;
+}
+
+body:not(:has(#ScrollMainArea))::-webkit-scrollbar,
+.scroll-hidden::-webkit-scrollbar {
   display: none;
 }
 
-/*!*Overscroll 是当您滚动超出页面内容边界时有时会获得的“弹跳效果”。 这在移动应用程序中很常见。 用 CSS 禁用(会导致)：*!*/
-/*html {*/
-/*  height: 100%;*/
-/*  overflow: hidden;*/
-/*}*/
-
-body {
-  /* 2. 针对 Firefox */
-  scrollbar-width: none; /* Firefox */
-  /* 3. 针对旧版 IE/Edge */
-  -ms-overflow-style: none; /* IE 10+ */
-  /* 4. 需要保证元素实际可滚动 */
-  /*overflow-y: scroll; !* 如果只需要纵向滚动 *!*/
-  /* overflow-x: scroll; 如果需要横向滚动 */
-  /* 或者直接使用: overflow: auto; */
-  overflow: auto;
-  /* 视需要自定义其他样式 */
-}
-/* 始终不显示滚动条 会影响很多功能，所以不能全局用*/
-.scroll-hidden {
-  overflow: auto;
-  scrollbar-width: none; /* Firefox */
+/* 条漫页面由阅读区自身滚动，原生滚动条随右侧设置栏让出的宽度定位。 */
+html:has(#ScrollMainArea) {
+  height: 100%;
+  overflow: hidden;
 }
 
-.scroll-hidden::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+body:has(#ScrollMainArea) {
+  position: relative;
+  height: calc(100dvh - var(--toolbar-offset));
+  margin-top: var(--toolbar-offset);
+  min-height: 0;
+  overflow-y: scroll;
+  scrollbar-color: var(--base-content) var(--base-200);
 }
+
+body:has(#ScrollMainArea)::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+body:has(#ScrollMainArea)::-webkit-scrollbar-track {
+  background: var(--base-200);
+}
+
+body:has(#ScrollMainArea)::-webkit-scrollbar-thumb {
+  background: var(--base-content);
+  border: 3px solid var(--base-200);
+  border-radius: 6px;
+}
+
+/* 上栏固定时缩小实际滚动视口，滚动后的图片也不会被遮住。 */
+body.toolbar-pinned {
+  --toolbar-offset: 3rem;
+}
+
+body:has(#ScrollMainArea) > #OpenSettingButton {
+  position: fixed;
+  top: 0.25rem;
+  right: calc(var(--drawer-offset) + var(--reader-scrollbar-width) + 0.25rem);
+  z-index: 30;
+  color: var(--base-content);
+}
+
+[data-pin="header"] {
+  display: none;
+  margin: 0.25rem;
+}
+
+body.scroll-toolbar [data-pin="header"] {
+  display: inline-flex;
+}
+
+body.scroll-toolbar #header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: calc(100% - var(--drawer-offset));
+  padding-right: calc(0.25rem + var(--reader-scrollbar-width));
+  z-index: 20;
+  opacity: 0;
+  transform: translateY(-100%);
+  pointer-events: none;
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+
+body.scroll-toolbar:is(.toolbar-shown, .toolbar-pinned) #header,
+body.scroll-toolbar #header:has(:focus-visible) {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
 /* 抽屉（Drawer）的半透明黑色背景 */
 .bg-dark-backdrop\/70 {
     background-color: rgba(0, 0, 0, 0.3);
 }
 
-/* 抽屉遮罩由 JS 动态创建；这里显式定义层级，避免动态 z-30 未进入 Tailwind 产物时被 header/footer 压住。 */
+/* 抽屉遮罩的定位、层级和背景统一由 CSS 控制。 */
 [drawer-backdrop] {
     position: fixed;
     inset: 0;
     z-index: 30;
     background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* 固定抽屉独占右栏，正文、工具栏和浮动控件使用左栏的实际宽度。 */
+body.drawer-pinned {
+    --drawer-offset: var(--drawer-width);
+    position: relative;
+    width: calc(100% - var(--drawer-offset));
+}
+
+body.drawer-pinned #OpenSettingButton,
+body.drawer-pinned .header-return {
+    display: none;
+}
+
+body.drawer-pinned .StepsRangeArea.fixed {
+    width: calc((100% - var(--drawer-offset)) * 5 / 6);
+    left: calc((100% - var(--drawer-offset)) / 12);
+}
+
+body.drawer-pinned #BackTopButton {
+    right: calc(var(--drawer-offset) + 1rem);
 }
 
 /* 普通 drawer/plugin range 的进度色；专用滑条由各自页面维护。 */
@@ -222,7 +301,7 @@ body[data-theme="cyberpunk"] select option {
 }
 
 /* 按钮保留各自 Tailwind hover 色，再按主题明暗做轻微亮度提示。 */
-:is(button, a.panel-control, [role="button"], [data-drawer-target], [data-drawer-show], [data-drawer-hide], [data-modal-target], [data-modal-toggle], [onclick]):hover:not(:disabled) {
+:is(button, a.panel-control, [role="button"], [data-drawer-show], [data-drawer-hide], [data-modal-target], [data-modal-toggle], [onclick]):hover:not(:disabled) {
   filter: var(--button-hover-filter);
 }
 

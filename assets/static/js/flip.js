@@ -14,7 +14,6 @@ const DOM = {
     singleNowImage: null,
     doubleNowImageLeft: null,
     doubleNowImageRight: null,
-    openSettingButton: null,
     reSortDropdownMenu: null,
     quickJumpDropdown: null,
 }
@@ -31,7 +30,6 @@ function initDOMCache() {
     DOM.singleNowImage = document.getElementById('Single-NowImage')
     DOM.doubleNowImageLeft = document.getElementById('Double-NowImage-Left')
     DOM.doubleNowImageRight = document.getElementById('Double-NowImage-Right')
-    DOM.openSettingButton = document.getElementById('OpenSettingButton')
     DOM.reSortDropdownMenu = document.getElementById('ReSortDropdownMenu')
     DOM.quickJumpDropdown = document.getElementById('QuickJumpDropdown')
 }
@@ -54,7 +52,6 @@ const getConfig = () => ({
     maxReconnectAttempts: Alpine.store('flip').websocketMaxReconnect,
     reconnectInterval: Alpine.store('flip').websocketReconnectInterval,
     // 静态配置
-    setAreaRatio: 0.15,  // 设置区域比例
     slideBlockMargin: 30, // 边界回弹距离
 })
 
@@ -148,8 +145,6 @@ function initToolbarListeners() {
 }
 
 // Base64编码静态资源图片（鼠标图标）：
-// base64 -i SettingsOutline.svg ，然后// 把下面这行换成输出
-const SettingsOutlineBase64 = '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'
 // base64 -i Prohibited28Filled.png
 const Prohibited28FilledBase64 = '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'
 // base64 -i ArrowLeft.png
@@ -547,7 +542,7 @@ function animateSlide(direction) {
     if (!DOM.slider) return
     
     const config = getConfig()
-    const width = window.innerWidth
+    const width = document.body.clientWidth
     const targetPosition = direction === 'left' ? -width : width
     const mangaMode = Alpine.store('flip').mangaMode
     const startPosition = currentTranslate
@@ -774,158 +769,31 @@ function toPreviousPage() {
 }
 
 
-//鼠标是否在设置区域
-function getInSetArea(e) {
-    let clickX = e.x //获取鼠标的X坐标（鼠标与屏幕左侧的距离,单位为px）
-    let clickY = e.y //获取鼠标的Y坐标（鼠标与屏幕顶部的距离,单位为px）
-    const interactionUtils = getFlipInteractionUtils()
-    if (interactionUtils?.isInSetArea) {
-        return interactionUtils.isInSetArea(clickX, clickY, window.innerWidth, window.innerHeight, 0.15)
-    }
-    return false
-}
-
-// 翻页阅读功能：显示工具栏时，点击设置区域，自动漫画区域居中。
-function scrollToMangaMain() {
-    if (!Alpine.store('flip').autoHideToolbar) {
-        // 将 slider_container 顶部对齐到浏览器可见区域顶部
-        const mangaMain = document.getElementById('slider_container')
-        mangaMain.scrollIntoView({
-            behavior: 'smooth', // 平滑滚动
-            block: 'start', // 与可视区顶部对齐
-        })
-    }
-}
-
-//获取鼠标位置,决定是否打开设置面板
+// 点击阅读区左右两侧翻页。
 function onMouseClick(e) {
-    // 如果正在滑动，则不处理点击事件
-    if (isSwiping || Math.abs(currentTranslate) > 10) {
+    if (isSwiping || Math.abs(currentTranslate) > 10) return
+    const leftSide = e.x < document.body.clientWidth * 0.5
+    const mangaMode = Alpine.store('flip').mangaMode
+    if ((leftSide && !mangaMode) || (!leftSide && mangaMode)) {
+        toPreviousPage()
+    } else {
+        toNextPage()
+    }
+}
+
+// 进度条使用普通指针，阅读区按方向和页码边界选择翻页光标。
+function onMouseMove(e) {
+    if (isPointInRect(DOM.range.getBoundingClientRect(), e.x, e.y)) {
+        e.currentTarget.style.cursor = 'default'
         return
     }
-    //获取鼠标的X坐标（鼠标与屏幕左侧的距离,单位为px）
-    let clickX = e.x
-    //浏览器的视口宽,不包括工具栏和滚动条:
-    let innerWidth = window.innerWidth
-    let inSetArea = getInSetArea(e)
-    if (inSetArea) {
-        // 高度对齐
-        if (Alpine.store('flip').autoAlign) {
-            scrollToMangaMain()
-        }
-        // 如果工具栏是隐藏的，点击设置区域时，显示工具栏
-        if (Alpine.store('flip').autoHideToolbar === true) {
-            showToolbar()
-        }
-        //获取ID为 OpenSettingButton的元素，然后模拟点击
-        document.getElementById('OpenSettingButton').click()
-    }
-    if (!inSetArea) {
-        //决定如何翻页
-        if (clickX < innerWidth * 0.5) {
-            //左边的翻页
-            if (!Alpine.store('flip').mangaMode) {
-                toPreviousPage()
-            } else {
-                toNextPage()
-            }
-        } else {
-            //右边的翻页
-            if (!Alpine.store('flip').mangaMode) {
-                toNextPage()
-            } else {
-                toPreviousPage()
-            }
-        }
-    }
-}
-
-
-//获取鼠标位置,决定如何显示鼠标指针
-function onMouseMove(e) {
-    // https://developer.mozilla.org/zh-CN/docs/Web/API/Event/stopPropagation
-    // 相当于 Alpinejs的    @click.stop="onMouseMove()" ? https://alpinejs.dev/directives/on#prevent
-    let clickX = e.x //获取鼠标的X坐标（鼠标与屏幕左侧的距离,单位为px）
-    // 浏览器的视口宽,不包括工具栏和滚动条:
-    let innerWidth = window.innerWidth
-    //在设置区域
-    let inSetArea = getInSetArea(e)
-    // https://developer.mozilla.org/zh-CN/docs/Web/CSS/cursor
-    if (inSetArea) {
-        e.currentTarget.style.cursor = `url("data:image/png;base64,${SettingsOutlineBase64}") 12 12, pointer`
-        showToolbar()
-    }
-    let stepsRangeArea = document
-        .getElementById('StepsRangeArea')
-        .getBoundingClientRect()
-    //判断鼠标是否在翻页条上
-    let inRangeArea =
-        clickX >= stepsRangeArea.left &&
-        clickX <= stepsRangeArea.right &&
-        e.y >= stepsRangeArea.top &&
-        e.y <= stepsRangeArea.bottom
-    // 判断鼠标是否在翻页条上,如果在翻页条上,就设置为默认的鼠标指针
-    if (inRangeArea) {
-        e.currentTarget.style.cursor = 'default'
-    }
-    //设置鼠标指针
-    if (!inSetArea && !inRangeArea) {
-        if (clickX < innerWidth * 0.5) {
-            //设置左边的鼠标指针
-            if (
-                !Alpine.store('flip').mangaMode &&
-                Alpine.store('global').nowPageNum === 1
-            ) {
-                //右边翻下一页,且目前是第一页的时候,左边的鼠标指针,设置为禁止翻页
-                e.currentTarget.style.cursor =
-                    `url("data:image/png;base64,${Prohibited28FilledBase64}") 12 12, pointer`
-            } else if (
-                Alpine.store('flip').mangaMode &&
-                Alpine.store('global').nowPageNum === Alpine.store('global').allPageNum
-            ) {
-                //左边翻下一页,且目前是最后一页的时候,左边的鼠标指针,设置为禁止翻页
-                e.currentTarget.style.cursor =
-                    `url("data:image/png;base64,${Prohibited28FilledBase64}") 12 12, pointer`
-            } else {
-                //正常情况下,左边是向左的箭头
-                e.currentTarget.style.cursor = `url("data:image/png;base64,${ArrowLeftBase64}") 12 12, pointer`
-            }
-        } else {
-            //设置右边的鼠标指针
-            if (
-                !Alpine.store('flip').mangaMode &&
-                Alpine.store('global').nowPageNum === Alpine.store('global').allPageNum
-            ) {
-                //右边翻下一页,且目前是最后页的时候,右边的鼠标指针,设置为禁止翻页
-                e.currentTarget.style.cursor =
-                    `url("data:image/png;base64,${Prohibited28FilledBase64}") 12 12, pointer`
-            } else if (
-                Alpine.store('flip').mangaMode &&
-                Alpine.store('global').nowPageNum === 1
-            ) {
-                //左边翻下一页,且目前是第一页的时候,右边的鼠标指针,设置为禁止翻页
-                e.currentTarget.style.cursor =
-                    `url("data:image/png;base64,${Prohibited28FilledBase64}") 12 12, pointer`
-            } else {
-                //正常情况下,右边是向右的箭头
-                e.currentTarget.style.cursor = `url("data:image/png;base64,${ArrowRightBase64}") 12 12, pointer`
-            }
-        }
-    }
-}
-
-/**
- * 获取元素的边界信息
- * @returns {Object} 各元素的边界矩形
- */
-function getElementsRect() {
-    return {
-        rect1_header: DOM.header ? DOM.header.getBoundingClientRect() : null,
-        rect2_range: DOM.range ? DOM.range.getBoundingClientRect() : null,
-        rect3_sort_dropdown: DOM.reSortDropdownMenu ? DOM.reSortDropdownMenu.getBoundingClientRect() : null,
-        rect4_dropdown_quick_jump: DOM.quickJumpDropdown ? DOM.quickJumpDropdown.getBoundingClientRect() : null,
-        rect5_steps_range_area: DOM.range ? DOM.range.getBoundingClientRect() : null,
-    }
+    const leftSide = e.x < document.body.clientWidth * 0.5
+    const mangaMode = Alpine.store('flip').mangaMode
+    const { nowPageNum, allPageNum } = Alpine.store('global')
+    const previous = leftSide ? !mangaMode : mangaMode
+    const blocked = nowPageNum === (previous ? 1 : allPageNum)
+    const icon = blocked ? Prohibited28FilledBase64 : leftSide ? ArrowLeftBase64 : ArrowRightBase64
+    e.currentTarget.style.cursor = `url("data:image/png;base64,${icon}") 12 12, pointer`
 }
 
 /**
@@ -943,66 +811,20 @@ function isPointInRect(rect, x, y) {
     return false
 }
 
-document.addEventListener('mousemove', function (event) {
-    const {
-        rect1_header,
-        rect2_range,
-        rect3_sort_dropdown,
-        rect4_dropdown_quick_jump,
-        rect5_steps_range_area,
-    } = getElementsRect()
-    const x = event.clientX
-    const y = event.clientY
-    let inInElement1 = false
-    let inInElement2 = false
-    
-    // 因为 header 需要收起来，所以不能用 left、right、top、bottom 判断 y 是否在 header 的范围内
-    // 现在设定为固定的 80px 高度，这样会比较自然
-    if (Alpine.store('flip').autoHideToolbar) {
-        inInElement1 = (y <= 80)
-        inInElement2 = (y >= window.innerHeight - 80)
-    } else {
-        // 如果工具栏不自动隐藏，用边界判断
-        inInElement1 = isPointInRect(rect1_header, x, y)
-        inInElement2 = isPointInRect(rect2_range, x, y)
-    }
-
-    // 判断鼠标是否在各个下拉菜单范围内
-    const inInElement3 = isPointInRect(rect3_sort_dropdown, x, y)
-    const inInElement4 = isPointInRect(rect4_dropdown_quick_jump, x, y)
-    const inInElement5 = isPointInRect(rect5_steps_range_area, x, y)
-
-    // 鼠标在设置区域
-    const inSetArea = getInSetArea(event)
-    
-    // 如果鼠标在任何感兴趣的区域，显示工具栏
-    if (inSetArea || inInElement1 || inInElement2 || inInElement3 || inInElement4 || inInElement5) {
+// 上下边缘及工具栏控件维持显示，其余区域收起工具栏。
+document.addEventListener('mousemove', (event) => {
+    const { clientX: x, clientY: y } = event
+    const autoHide = Alpine.store('flip').autoHideToolbar
+    const inHeader = autoHide ? y <= 80 : isPointInRect(DOM.header?.getBoundingClientRect(), x, y)
+    const inBottomEdge = autoHide && y >= window.innerHeight - 80
+    const inControls = [DOM.range, DOM.reSortDropdownMenu, DOM.quickJumpDropdown]
+        .some(element => isPointInRect(element?.getBoundingClientRect(), x, y))
+    if (inHeader || inBottomEdge || inControls) {
         showToolbar()
     } else {
         hideToolbar()
     }
 })
-
-//可见区域变化时，改变页面状态
-function onResize() {
-    Alpine.store('flip').imageMaxWidth = window.innerWidth
-    let clientWidth = document.documentElement.clientWidth
-    let clientHeight = document.documentElement.clientHeight
-    let aspectRatio = clientWidth / clientHeight
-    // 为了调试的时候方便,阈值是正方形
-    if (aspectRatio > 19 / 19) {
-        Alpine.store('flip').isLandscapeMode = true
-        Alpine.store('flip').isPortraitMode = false
-    } else {
-        Alpine.store('flip').isLandscapeMode = false
-        Alpine.store('flip').isPortraitMode = true
-    }
-}
-
-//初始化时,执行一次onResize()
-onResize()
-//文档视图调整大小时触发 resize 事件。 https://developer.mozilla.org/zh-CN/docs/Web/API/Window/resize_event
-window.addEventListener('resize', onResize)
 
 //离开区域的时候,清空鼠标样式
 function onMouseLeave(e) {

@@ -21,12 +21,6 @@ Alpine.store("scroll", {
 	pageLimit: Alpine.$persist(32).as("scroll.pageLimit"),
 	// 卷轴阅读的同步滚动,目前还没做
 	syncScrollFlag: Alpine.$persist(false).as("scroll.syncScrollFlag"),
-	imageMaxWidth: 400,
-	// 屏幕宽横比,inLandscapeMode的判断依据
-	aspectRatio: 1.2,
-	// 可见范围宽高的具体值
-	clientWidth: 0,
-	clientHeight: 0,
 	//漫画页的单位,是否使用固定值
 	widthUseFixedValue: Alpine.$persist(true).as("scroll.widthUseFixedValue"),
     //竖屏(Portrait)状态的漫画页宽度,百分比
